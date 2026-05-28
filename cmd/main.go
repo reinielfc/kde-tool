@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/godbus/dbus/v5"
 	"github.com/reinielfc/kde-tools/qdbus"
 	"github.com/spf13/cobra"
 )
@@ -13,30 +14,51 @@ func main() {
 		Use:   "kde",
 		Short: "KDE utilities",
 		Run: func(cmd *cobra.Command, args []string) {
-			var err error
+			var busAction func(*dbus.Conn) error
+
 			switch {
 			case nextActivity:
-				err = qdbus.NewActivityClient().NextActivity()
+				busAction = func(conn *dbus.Conn) error {
+					return qdbus.NewActivityClient(conn).NextActivity()
+				}
 
 			case previousActivity:
-				err = qdbus.NewActivityClient().PreviousActivity()
+				busAction = func(conn *dbus.Conn) error {
+					return qdbus.NewActivityClient(conn).PreviousActivity()
+				}
 
 			case toggleNightLight:
-				err = qdbus.NewShortcutClient().ToggleNightColor()
+				busAction = func(conn *dbus.Conn) error {
+					return qdbus.NewNightLightClient(conn).Toggle()
+				}
 
 			default:
 				panic("no action specified")
 			}
 
+			var err error
+
+			if busAction != nil {
+				conn, connErr := dbus.SessionBus()
+				if connErr != nil {
+					panic(connErr)
+				}
+
+				defer conn.Close()
+
+				err = busAction(conn)
+			}
+
 			if err != nil {
 				panic(err)
 			}
+
 		},
 	}
 
-	cmd.Flags().BoolVarP(&nextActivity, "next-activity", "a", false, "switch to the next activity")
-	cmd.Flags().BoolVarP(&previousActivity, "prev-activity", "A", false, "switch to the previous activity")
-	cmd.Flags().BoolVarP(&toggleNightLight, "nightlight", "l", false, "toggle night light")
+	cmd.Flags().BoolVar(&nextActivity, "next-activity", false, "switch to the next activity")
+	cmd.Flags().BoolVar(&previousActivity, "prev-activity", false, "switch to the previous activity")
+	cmd.Flags().BoolVar(&toggleNightLight, "toggle-nightlight", false, "toggle night light")
 
 	if err := cmd.Execute(); err != nil {
 		panic(err)
