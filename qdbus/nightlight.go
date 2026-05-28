@@ -39,7 +39,7 @@ func NewNightLightClient(conn *dbus.Conn) *NightLightClient {
 }
 
 func (c *NightLightClient) Toggle() error {
-	return c.shortcut.voidCall("invokeShortcut", 0, "Night Light Toggle")
+	return c.shortcut.voidCall("invokeShortcut", 0, "Toggle Night Color")
 }
 
 func (c *NightLightClient) Running() (bool, error) {
