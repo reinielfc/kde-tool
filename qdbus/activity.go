@@ -2,41 +2,56 @@ package qdbus
 
 import (
 	"fmt"
+
+	"github.com/godbus/dbus/v5"
+)
+
+// region Client
+
+const (
+	activityMgrSvcName  = "org.kde.ActivityManager"
+	activitiesObjPath   = "/ActivityManager/Activities"
+	activitiesIfaceName = "org.kde.ActivityManager.Activities"
 )
 
 type ActivityClient struct {
-	*QDBusClient
+	activities *QDBusInterfaceClient
 }
 
-func NewActivityClient() *ActivityClient {
+func NewActivityClient(conn *dbus.Conn) *ActivityClient {
 	return &ActivityClient{
-		QDBusClient: NewQDBusClient(
-			"org.kde.ActivityManager",
-			"/ActivityManager/Activities",
-			"org.kde.ActivityManager.Activities",
-		),
+		activities: &QDBusInterfaceClient{
+			conn:      conn,
+			svcName:   activityMgrSvcName,
+			objPath:   activitiesObjPath,
+			ifaceName: activitiesIfaceName,
+		},
 	}
 }
 
-// Methods
-
 func (c *ActivityClient) SetCurrentActivity(activityID string) error {
-	return c.run("SetCurrentActivity", activityID)
+	return c.activities.voidCall("SetCurrentActivity", 0, activityID)
 }
 
 func (c *ActivityClient) CurrentActivity() (string, error) {
-	return c.output("CurrentActivity")
+	return c.activities.stringCall("CurrentActivity", 0)
 }
 
 func (c *ActivityClient) ListActivities() ([]string, error) {
-	return c.outputLines("ListActivities")
+	return c.activities.stringListCall("ListActivities", 0)
 }
 
 func (c *ActivityClient) ActivityName(activityID string) (string, error) {
-	return c.output("ActivityName", activityID)
+	return c.activities.stringCall("ActivityName", 0, activityID)
 }
 
-// Additional Helpers
+func (c *ActivityClient) NextActivity() error {
+	return c.activities.voidCall("NextActivity", 0)
+}
+
+func (c *ActivityClient) PreviousActivity() error {
+	return c.activities.voidCall("PreviousActivity", 0)
+}
 
 func (c *ActivityClient) SetCurrentActivityByName(activityName string) error {
 	activityID, err := c.activityID(activityName)
@@ -70,39 +85,4 @@ func (c *ActivityClient) CurrentActivityName() (string, error) {
 		return "", err
 	}
 	return c.ActivityName(id)
-}
-
-func (c *ActivityClient) NextActivity() error {
-	return c.cycleActivities(1)
-}
-
-func (c *ActivityClient) PreviousActivity() error {
-	return c.cycleActivities(-1)
-}
-
-func (c *ActivityClient) cycleActivities(offset int) error {
-	activities, err := c.ListActivities()
-	if err != nil {
-		return err
-	}
-
-	current, err := c.CurrentActivity()
-	if err != nil {
-		return err
-	}
-
-	index := -1
-	for i, id := range activities {
-		if id == current {
-			index = i
-			break
-		}
-	}
-	if index == -1 {
-		return fmt.Errorf("current activity not found in list of activities")
-	}
-
-	n := len(activities)
-	nextIndex := ((index+offset)%n + n) % n // handles any offset magnitude
-	return c.SetCurrentActivity(activities[nextIndex])
 }
