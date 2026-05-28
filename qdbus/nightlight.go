@@ -1,25 +1,68 @@
 package qdbus
 
+import "github.com/godbus/dbus/v5"
+
+// region Client
+
+const (
+	nightLightSvcName   = "org.kde.KWin.NightLight"
+	nightLightObjPath   = "/org/kde/KWin/NightLight"
+	nightLightIfaceName = "org.kde.KWin.NightLight"
+)
+
+const (
+	shortcutSvcName   = "org.kde.kglobalaccel"
+	shortcutObjPath   = "/component/kwin"
+	shortcutIfaceName = "org.kde.kglobalaccel.Component"
+)
+
 type NightLightClient struct {
-	*QDBusClient
+	nightLight *QDBusInterfaceClient
+	shortcut   *QDBusInterfaceClient
 }
 
-func NewNightLightClient() *NightLightClient {
+func NewNightLightClient(conn *dbus.Conn) *NightLightClient {
 	return &NightLightClient{
-		QDBusClient: NewQDBusClient(
-			"org.kde.kded",
-			"/modules/nightlight",
-			"org.kde.kded.nightlight",
-		),
+		nightLight: &QDBusInterfaceClient{
+			conn:      conn,
+			svcName:   nightLightSvcName,
+			objPath:   nightLightObjPath,
+			ifaceName: nightLightIfaceName,
+		},
+		shortcut: &QDBusInterfaceClient{
+			conn:      conn,
+			svcName:   shortcutSvcName,
+			objPath:   shortcutObjPath,
+			ifaceName: shortcutIfaceName,
+		},
 	}
 }
 
-// Methods
+func (c *NightLightClient) Toggle() error {
+	return c.shortcut.voidCall("invokeShortcut", 0, "Night Light Toggle")
+}
 
 func (c *NightLightClient) Running() (bool, error) {
-	output, err := c.output("running")
+	return c.nightLight.boolProperty("running", 0)
+}
+
+func (c *NightLightClient) TurnOn() error {
+	return c.setState(true)
+}
+
+func (c *NightLightClient) TurnOff() error {
+	return c.setState(false)
+}
+
+func (c *NightLightClient) setState(state bool) error {
+	running, err := c.Running()
 	if err != nil {
-		return false, err
+		return err
 	}
-	return output == "true", nil
+
+	if running == state {
+		return nil
+	}
+
+	return c.Toggle()
 }
