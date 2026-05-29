@@ -1,4 +1,4 @@
-module github.com/reinielfc/kde-tools
+module github.com/reinielfc/kde-tool
 
 go 1.26.3
 
