@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/godbus/dbus/v5"
-	"github.com/reinielfc/kde-tools/qdbus"
+	"github.com/reinielfc/kde-tool/qdbus"
 	"github.com/spf13/cobra"
 )
 
